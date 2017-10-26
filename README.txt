@@ -11,7 +11,7 @@ ProVerif is a command-line tool which can be executed using the syntax:
 Code example
 
 
-C:\Users\idle>E:
+C:\Users>E:
 
 E:\>E:\proverif\proverif1.96\proverif.exe E:\proverif\proverif1.96\sensors.pv
 File "E:\proverif\proverif1.96\sensors.pv", line 127, character 16 - line 127, character 1
@@ -157,4 +157,3 @@ ok, secrecy assumption verified: fact unreachable attacker(NC[])
 Starting query inj-event(endUGparam(x_7830)) ==> inj-event(beginUGparam(x_7830))
 RESULT inj-event(endUGparam(x_7830)) ==> inj-event(beginUGparam(x_7830)) is true.
 
-E:\>
