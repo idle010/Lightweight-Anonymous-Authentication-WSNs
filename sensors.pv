@@ -1,0 +1,181 @@
+(*--The two public channel--*)
+free c1: channel.
+free c2: channel.
+
+(*--The basic type--*)
+type key.
+type host.
+type nonce.
+type timestamp.
+
+(*--Shared key encryption--*)
+fun encrypt(bitstring,key): bitstring.
+reduc forall x: bitstring, y: key; decrypt(encrypt(x,y),y) = x.
+
+(*--Hash operation--*) 
+fun H1(bitstring): bitstring.
+fun H2(bitstring,bitstring): bitstring.
+fun H3(bitstring,bitstring,bitstring):key.
+fun H4(bitstring,bitstring,bitstring,bitstring):bitstring.
+fun H5(bitstring,bitstring,bitstring,bitstring,bitstring): bitstring.
+fun H6(bitstring,bitstring,bitstring,bitstring,bitstring,bitstring): bitstring.
+
+(*--XOR operation--*)
+fun XOR(bitstring, bitstring): bitstring.
+equation forall x: bitstring, y: bitstring; XOR(XOR(x, y), y) = x.
+
+(*--Concat operation--*)
+fun Concat(bitstring, bitstring): bitstring.
+
+(*--Check timestamp Fresh operation--*)
+fun isFresh(timestamp, bool): bool
+reduc forall T: timestamp; isFresh(T, true) = true
+otherwise forall T: timestamp; isFresh(T, false) = false.
+
+(*--Mod operation--*)
+fun Mod(bitstring, bitstring): bitstring.
+
+(*--Type convertion--*)
+fun key_to_bitstring(key): bitstring [data,typeConverter].
+fun nonce_to_bitstring(nonce): bitstring [data,typeConverter].
+fun bitstring_to_key(bitstring): key [data,typeConverter].
+fun timestamp_to_bitstring(timestamp): bitstring [data,typeConverter].
+
+(*--Secrecy assumptions--*)
+not attacker(new Ki).
+not attacker(new NC).
+
+(*--The basic variables--*)
+const CVaule: bitstring.
+free user,GWN,SN: host. (*---three participants in our scheme--*)
+free PID: bitstring. (*---the pseudonym identity shared by user and GWN--*)
+free Kgs: key[private]. (*---the shared key KGWN-S between GWN and sensor node--*)
+free NSj:bitstring. (*---the serial number between GWN and sensor node--*)
+
+table PsIDKey(bitstring, bitstring, key, key).  (*---the table user's pseudonym identity/IDi/key---*)
+
+(*--Authentication queries--*)
+event beginUGparam(host).
+event endUGparam(host).
+event beginGUparam(host).
+event endGUparam(host).
+event beginGSparam(host).
+event endGSparam(host).
+event beginSGparam(host).
+event endSGparam(host).
+query x: host; inj-event(endUGparam(x)) ==> inj-event(beginUGparam(x)).
+query x: host; inj-event(endGUparam(x)) ==> inj-event(beginGUparam(x)).
+query x: host; inj-event(endGSparam(x)) ==> inj-event(beginGSparam(x)).
+query x: host; inj-event(endSGparam(x)) ==> inj-event(beginSGparam(x)).
+
+(*--Queries--*)
+free secretA, secretB, secretC, secretD: bitstring [private].
+query attacker(secretA);
+      attacker(secretB);
+      attacker(secretC);
+      attacker(secretD).
+
+(*--Role of the User with identity IDi and shared key Ki,NCi--*)
+let processUser(Snj: bitstring, PW: bitstring, bi: bitstring, Fi: bitstring, V: bitstring) =        
+	      in(c1, PIDx:bitstring);
+	      if PIDx = PID then
+	      get PsIDKey(=PID, IDi, Kgu, NCi) in	      
+           event beginGUparam(GWN);        
+           let xKi = XOR(Fi, key_to_bitstring(H3(IDi,PW,bi))) in
+           if bitstring_to_key(xKi) = Kgu then
+	      let V' = H1(Mod(Concat(xKi, key_to_bitstring(H3(IDi,PW,bi))), CVaule)) in
+	      if V'=V then	      
+	      let EK = H3(IDi,key_to_bitstring(Kgu),key_to_bitstring(NCi)) in
+	      new rA: nonce;
+	      new T: timestamp;
+	      let vv1 = H6(IDi,nonce_to_bitstring(rA),key_to_bitstring(Kgu),PID,key_to_bitstring(NCi), 
+                   timestamp_to_bitstring(T)) in
+(*UO1*)    out(c1, (PID, encrypt((rA, timestamp_to_bitstring(T)), EK), vv1, isFresh(T, true)));  
+(*UR1*)    in(c1, (CT3:bitstring, v4:bitstring));
+	      let GEK' = H4(nonce_to_bitstring(rA),IDi,key_to_bitstring(Kgu),key_to_bitstring(NCi)) in
+	      let (xsk:key, xPID0:bitstring) = decrypt(CT3, bitstring_to_key(GEK')) in
+	      (* OK *)
+	      let v'4 = H4(IDi,key_to_bitstring(xsk),nonce_to_bitstring(rA),xPID0) in
+	      if v'4 =v4 then
+(*UO2*)    out(c1,  H4(Snj,IDi,xPID0,key_to_bitstring(xsk)));      
+           event endUGparam(user);
+	      out(c1, encrypt(secretA, xsk)).
+
+(*--Role of the GWN with shared key ki, NC and Kgs--*)
+let processGWN(Snj: bitstring) =
+(*GUR1*)in(c1, (xPID: bitstring, CT1: bitstring, v1: bitstring, T':timestamp, checkT:bool));
+       
+        get PsIDKey(=xPID, IDi, Kgu, NCi) in
+        let EK' = H3(IDi,key_to_bitstring(Kgu),key_to_bitstring(NCi)) in
+        let (rAx:nonce,TT:bitstring) = decrypt(CT1, EK') in
+        if checkT = true then
+        event beginUGparam(user);
+        let v'1 = H6(IDi,nonce_to_bitstring(rAx),key_to_bitstring(Kgu),PID,key_to_bitstring(NCi), 
+                TT) in
+        if v'1=v1 then
+        
+	      new sk: key;
+	      event beginSGparam(SN);
+	      let CT'2= XOR(Concat(key_to_bitstring(sk),IDi),key_to_bitstring(H3(key_to_bitstring(Kgs),Snj,NSj))) in
+	      let vv2 = H5(IDi,Snj,key_to_bitstring(sk),key_to_bitstring(Kgs),NSj) in
+(*GSO1*)   out(c2, (CT'2, vv2));
+(*GSR1*)    in(c2, v3: bitstring);
+	      let v'3 = H4(Snj,IDi,key_to_bitstring(sk),NSj) in
+	      if v'3 = v3 then
+	      (* OK *)
+	      event endGSparam(GWN);
+           let Kgs=bitstring_to_key(H1(key_to_bitstring(Kgs))) in
+           out(c2, encrypt(secretC, sk));
+           	      
+	      new PID0: bitstring;
+	      let GEK = H4(nonce_to_bitstring(rAx),IDi,key_to_bitstring(Kgu),key_to_bitstring(NCi)) in
+	      let vv4 = H4(IDi,key_to_bitstring(sk),nonce_to_bitstring(rAx),PID0) in
+(*GUO1*)   out(c1, (encrypt((sk, PID0), bitstring_to_key(GEK)),vv4));
+(*GUR2*)   in(c1, v5:bitstring);
+	      let v'5 =   H4(Snj,IDi,PID0,key_to_bitstring(sk)) in
+           if v'5 = v5 then
+           event endGUparam(GWN);
+           let PID=PID0 in
+	      insert PsIDKey(PID, IDi, Kgu, NCi);
+	      (* OK *)
+	      out(c1, encrypt(secretB, sk)).   
+	    
+(*--Role of the sensor node with identity Snj and shared key Kgs--*)
+let processS(Snj:bitstring) = 
+(*SR1*) in(c2,  (CT2: bitstring,v2:bitstring));
+        event beginGSparam(GWN);
+	      let (skx:bitstring, xA2:bitstring) = XOR(CT2,key_to_bitstring(H3(key_to_bitstring(Kgs),Snj,NSj))) in
+	      let v'2=  H5(xA2,Snj,skx,key_to_bitstring(Kgs),NSj) in
+	      if v'2=v2 then
+(*SO1*) out(c2, H4(Snj,xA2,skx,NSj)); 
+        event endSGparam(SN);
+	      (* OK *)
+        out(c2, encrypt(secretD, bitstring_to_key(skx))).
+
+let processPsIDKey =
+        in(c1, (PIDi: bitstring, ID: bitstring, shk: key, onek: key));
+        if PIDi <> PID then insert PsIDKey(PIDi, ID, shk, onek).
+
+(*--Start process--*)
+process
+	new ID: bitstring; 
+	new PW: bitstring;
+	new bi: bitstring;
+	new Snj: bitstring; 
+	new NC: key; (*--the shared one-time hash_chain between user and GWN--*)
+	new Ki: key; (*---the shared key Ki between user and GWN--*)
+	new Fi: bitstring;
+	new V: bitstring;
+	insert PsIDKey(PID, ID, Ki, NC);
+	let Fi = XOR(key_to_bitstring(Ki), key_to_bitstring(H3(ID,PW,bi))) in
+	let V = H1(Mod(Concat(key_to_bitstring(Ki), key_to_bitstring(H3(ID,PW,bi))), CVaule)) in
+	(
+          (*-- Launch an unbounded number of sessions of the user --*)
+          (!processUser(Snj,PW,bi,Fi,V)) | 
+          (*-- Launch an unbounded number of sessions of the GWN--*)
+          (!processGWN(Snj)) |
+          (*-- Launch an unbounded number of sessions of the sensor node--*)
+          (!processS(Snj)) | 
+          (*-- Key registration process --*)
+          (!processPsIDKey)
+    )
