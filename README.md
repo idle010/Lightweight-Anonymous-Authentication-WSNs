@@ -1,8 +1,8 @@
-<p>## Synopsis</p>
+## Synopsis
 
 <p>This project contains the implementation details of the proposed scheme in &quot;A Lightweight Anonymous Authentication Protocol with Perfect Forward Secrecy for Wireless Sensor Networks&quot;.</p>
 
-<p>## Environmental requirements</p>
+## Environmental requirements
 
 <p>Programs can run under Windows, Linux, and Macs.&nbsp;<br />
 Install Proverif 1.96, download Address: http://proverif.inria.fr/<br />
@@ -10,7 +10,7 @@ No additional libraries are required.&nbsp;<br />
 ProVerif is a command-line tool which can be executed using the syntax:<br />
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;./proverif [options] hfilenamei</p>
 
-<p>## Code example</p>
+## Code example
 
 <p><br />
 C:\Users&gt;E:</p>
